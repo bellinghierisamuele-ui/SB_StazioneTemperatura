@@ -1,69 +1,64 @@
 #include <WiFi.h>
 
-// Inserisci qui le credenziali della tua rete locale
-const char* ssid     = "IL_TUO_SSID_WIFI";
-const char* password = "LA_TUA_PASSWORD_WIFI";
+// ==========================================
+// CONFIGURAZIONE RETE WI-FI
+// ==========================================
+const char* ssid     = "NOME_DELLA_TUA_RETE";
+const char* password = "PASSWORD_DELLA_RETE";
 
-// Funzione dedicata alla logica di connessione
-void setupWiFi() {
-  delay(10);
-  Serial.println();
-  Serial.print("Inizializzazione connessione alla rete: ");
-  Serial.println(ssid);
+// Pin del LED (GPIO 2 è solitamente il LED integrato nella maggior parte dei moduli ESP32)
+const int LED_PIN = 2;
 
-  // Imposta l'ESP32 in modalità Station (dispositivo client che si connette a un router)
-  WiFi.mode(WIFI_STA);
-  
-  // Avvia il tentativo di connessione hardware
-  WiFi.begin(ssid, password);
-
-  // Ciclo di attesa bloccante finché lo stato non diventa WL_CONNECTED
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print("."); // Feedback visivo sul monitor seriale durante l'attesa
-  }
-
-  // Connessione stabilita con successo
-  Serial.println("");
-  Serial.println("=========================================");
-  Serial.println("Wi-Fi Connesso con successo!");
-  Serial.print("Indirizzo IP assegnato (DHCP): ");
-  Serial.println(WiFi.localIP()); // Stampa l'IP locale utile per raggiungere l'ESP32
-  Serial.print("Rssi (Potenza del segnale): ");
-  Serial.print(WiFi.RSSI());
-  Serial.println(" dBm");
-  Serial.println("=========================================");
-}
-
-void checkWiFiConnection() {
-  // Controllo periodico dello stato per garantire la resilienza della rete IoT
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Connessione Wi-Fi perduta. Tentativo di riconnessione in corso...");
-    WiFi.disconnect();
-    WiFi.reconnect();
-    
-    // Attesa massima per la riconnessione automatica
-    int counter = 0;
-    while (WiFi.status() != WL_CONNECTED && counter < 20) {
-      delay(500);
-      Serial.print(".");
-      counter++;
-    }
-  }
-}
+// ==========================================
+// CONFIGURAZIONE STATO LED
+// Se vuoi il LED ACCESO quando c'è il Wi-Fi e SPENTO quando non c'è:
+//   LED_STATO_CONNESSO    = HIGH
+//   LED_STATO_DISCONNESSO = LOW
+//
+// Se invece vuoi il LED SPENTO quando c'è il Wi-Fi e ACCESO quando non c'è:
+//   LED_STATO_CONNESSO    = LOW
+//   LED_STATO_DISCONNESSO = HIGH
+// ==========================================
+const int LED_STATO_CONNESSO    = HIGH; // Stato del LED quando il Wi-Fi è CONNESSO
+const int LED_STATO_DISCONNESSO = LOW;  // Stato del LED quando il Wi-Fi NON è connesso
 
 void setup() {
-  // Configurazione della comunicazione seriale per il debug
   Serial.begin(115200);
   
-  // Esecuzione della routine di connessione
-  setupWiFi();
+  // Imposta il pin del LED come uscita
+  pinMode(LED_PIN, OUTPUT);
+  
+  // Stato iniziale: Wi-Fi non ancora connesso
+  digitalWrite(LED_PIN, LED_STATO_DISCONNESSO);
+
+  // Avvio della connessione Wi-Fi
+  Serial.print("Connessione in corso a ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
 }
 
 void loop() {
-  // Verifica costantemente che la connessione sia attiva prima di eseguire logiche IoT
-  checkWiFiConnection();
-  
-  // Il tuo codice principale (es. lettura DS18B20 o aggiornamento Web Server) va qui
-  delay(5000); 
+  // Verifichiamo lo stato della connessione
+  if (WiFi.status() == WL_CONNECTED) {
+    // --- WI-FI PRESENTE ---
+    digitalWrite(LED_PIN, LED_STATO_CONNESSO);
+    
+    // Stampa di controllo sul Monitor Seriale (una sola volta all'avvenuta connessione)
+    static bool giaStampato = false;
+    if (!giaStampato) {
+      Serial.println("\n[OK] Wi-Fi Connesso!");
+      Serial.print("Indirizzo IP: ");
+      Serial.println(WiFi.localIP());
+      giaStampato = true;
+    }
+  } else {
+    // --- WI-FI ASSENTE / DISCONNESSO ---
+    digitalWrite(LED_PIN, LED_STATO_DISCONNESSO);
+    
+    Serial.println("[!] Wi-Fi non connesso, tentativo di riconnessione...");
+    WiFi.reconnect(); // Riprova la connessione
+    delay(2000);      // Attendi 2 secondi prima del controllo successivo
+  }
+
+  delay(500); // Ritardo per evitare di appesantire la CPU
 }
