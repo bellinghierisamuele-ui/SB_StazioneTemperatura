@@ -1,0 +1,69 @@
+#include <WiFi.h>
+
+// Inserisci qui le credenziali della tua rete locale
+const char* ssid     = "IL_TUO_SSID_WIFI";
+const char* password = "LA_TUA_PASSWORD_WIFI";
+
+// Funzione dedicata alla logica di connessione
+void setupWiFi() {
+  delay(10);
+  Serial.println();
+  Serial.print("Inizializzazione connessione alla rete: ");
+  Serial.println(ssid);
+
+  // Imposta l'ESP32 in modalità Station (dispositivo client che si connette a un router)
+  WiFi.mode(WIFI_STA);
+  
+  // Avvia il tentativo di connessione hardware
+  WiFi.begin(ssid, password);
+
+  // Ciclo di attesa bloccante finché lo stato non diventa WL_CONNECTED
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print("."); // Feedback visivo sul monitor seriale durante l'attesa
+  }
+
+  // Connessione stabilita con successo
+  Serial.println("");
+  Serial.println("=========================================");
+  Serial.println("Wi-Fi Connesso con successo!");
+  Serial.print("Indirizzo IP assegnato (DHCP): ");
+  Serial.println(WiFi.localIP()); // Stampa l'IP locale utile per raggiungere l'ESP32
+  Serial.print("Rssi (Potenza del segnale): ");
+  Serial.print(WiFi.RSSI());
+  Serial.println(" dBm");
+  Serial.println("=========================================");
+}
+
+void checkWiFiConnection() {
+  // Controllo periodico dello stato per garantire la resilienza della rete IoT
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Connessione Wi-Fi perduta. Tentativo di riconnessione in corso...");
+    WiFi.disconnect();
+    WiFi.reconnect();
+    
+    // Attesa massima per la riconnessione automatica
+    int counter = 0;
+    while (WiFi.status() != WL_CONNECTED && counter < 20) {
+      delay(500);
+      Serial.print(".");
+      counter++;
+    }
+  }
+}
+
+void setup() {
+  // Configurazione della comunicazione seriale per il debug
+  Serial.begin(115200);
+  
+  // Esecuzione della routine di connessione
+  setupWiFi();
+}
+
+void loop() {
+  // Verifica costantemente che la connessione sia attiva prima di eseguire logiche IoT
+  checkWiFiConnection();
+  
+  // Il tuo codice principale (es. lettura DS18B20 o aggiornamento Web Server) va qui
+  delay(5000); 
+}
