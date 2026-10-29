@@ -1,0 +1,33 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// Pin a cui è collegato il pin Data del DS18B20
+#define ONE_WIRE_BUS 4
+
+// Inizializza il bus OneWire e l'oggetto DallasTemperature
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+void setup() {
+  Serial.begin(115200);
+  sensors.begin();
+  Serial.println("--- Test Sensore DS18B20 Inizializzato ---");
+}
+
+void loop() {
+  // Invia il comando per richiedere le letture
+  sensors.requestTemperatures(); 
+  
+  // Legge la temperatura in Gradi Celsius (indice 0 = primo sensore sul bus)
+  float tempC = sensors.getTempCByIndex(0);
+
+  if(tempC != DEVICE_DISCONNECTED_C) {
+    Serial.print("Temperatura rilevata: ");
+    Serial.print(tempC);
+    Serial.println(" °C");
+  } else {
+    Serial.println("Errore: Impossibile leggere dal sensore DS18B20!");
+  }
+
+  delay(2000); // Rilevamento ogni 2 secondi
+}
