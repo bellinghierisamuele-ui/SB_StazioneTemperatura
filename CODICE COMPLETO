@@ -1,0 +1,111 @@
+#include <WiFi.h>
+#include <Wire.h>
+#include <RTClib.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#include "time.h"
+
+// --- CONFIGURAZIONE WIFI & NTP ---
+const char* ssid       = "TUO_SSID_WIFI";
+const char* password   = "TUA_PASSWORD_WIFI";
+const char* ntpServer  = "pool.ntp.org";
+const long  gmtOffset_sec = 3600;       // UTC +1 (Italia)
+const int   daylightOffset_sec = 3600;  // Ora legale (+1 ora)
+
+// --- CONFIGURAZIONE DS18B20 ---
+#define ONE_WIRE_BUS 4
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+
+// --- OGGETTO RTC ---
+RTC_DS3231 rtc;
+
+// Gestione temporizzazione senza delay (millis)
+unsigned long previousMillis = 0;
+const long interval = 5000; // Campionamento ogni 5 secondi
+
+void syncRTCWithNTP() {
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) {
+    // Sincronizza l'RTC hardware con l'ora aggiornata da NTP
+    rtc.adjust(DateTime(
+      timeinfo.tm_year + 1900,
+      timeinfo.tm_mon + 1,
+      timeinfo.tm_mday,
+      timeinfo.tm_hour,
+      timeinfo.tm_min,
+      timeinfo.tm_sec
+    ));
+    Serial.println(">> RTC Sincronizzato con successo tramite NTP! <<");
+  } else {
+    Serial.println(">> Impossibile sincronizzare l'RTC con NTP! <<");
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  
+  // 1. Inizializzazione Sensore Temperatura
+  sensors.begin();
+
+  // 2. Inizializzazione Bus I2C e RTC
+  Wire.begin(21, 22); // Pin SDA = 21, SCL = 22
+  if (!rtc.begin()) {
+    Serial.println("ERRORE: Modulo RTC non trovato!");
+  }
+
+  // 3. Tentativo di connessione Wi-Fi e Sincronizzazione Ora
+  Serial.print("Connessione Wi-Fi in corso...");
+  WiFi.begin(ssid, password);
+  
+  int timeout = 0;
+  while (WiFi.status() != WL_CONNECTED && timeout < 20) { // Timeout 10 secondi
+    delay(500);
+    Serial.print(".");
+    timeout++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWi-Fi Connesso!");
+    configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+    syncRTCWithNTP();
+    WiFi.disconnect(true); // Spegne il modulo Wi-Fi per risparmiare energia (opzionale)
+  } else {
+    Serial.println("\nWi-Fi Non disponibile! Utilizzo ora memorizzata nell'RTC.");
+  }
+
+  Serial.println("\n--- STAZIONE DI RILEVAMENTO AVVIATA ---");
+}
+
+void loop() {
+  unsigned long currentMillis = millis();
+
+  // Esecuzione del campionamento ogni X millisecondi (non bloccante)
+  if (currentMillis - previousMillis >= interval) {
+    previousMillis = currentMillis;
+
+    // A. Lettura Ora dall'RTC
+    DateTime now = rtc.now();
+
+    // B. Lettura Temperatura dal DS18B20
+    sensors.requestTemperatures();
+    float tempC = sensors.getTempCByIndex(0);
+
+    // C. Formattazione e Stampa Stringa Dati
+    char timestampBuffer[25];
+    snprintf(timestampBuffer, sizeof(timestampBuffer), "%04d-%02d-%02d %02d:%02d:%02d",
+             now.year(), now.month(), now.day(),
+             now.hour(), now.minute(), now.second());
+
+    Serial.print("[ ");
+    Serial.print(timestampBuffer);
+    Serial.print(" ] - Temperatura: ");
+    
+    if (tempC != DEVICE_DISCONNECTED_C) {
+      Serial.print(tempC, 2);
+      Serial.println(" °C");
+    } else {
+      Serial.println("Errore Sensore!");
+    }
+  }
+}
