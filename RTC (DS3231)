@@ -1,0 +1,44 @@
+#include <Wire.h>
+#include <RTClib.h>
+
+RTC_DS3231 rtc;
+
+void setup() {
+  Serial.begin(115200);
+
+  // Inizializzazione del bus I2C (ESP32 usa GPIO 21 per SDA e GPIO 22 per SCL per default)
+  if (!rtc.begin()) {
+    Serial.println("Impossibile trovare il modulo RTC DS3231!");
+    while (1);
+  }
+
+  // Decommenta la riga sotto la prima volta per impostare manualmente l'RTC con l'ora di compilazione
+  // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+
+  if (rtc.lostPower()) {
+    Serial.println("RTC ha perso l'alimentazione, imposto l'ora predefinita!");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+
+  Serial.println("--- RTC DS3231 Inizializzato ---");
+}
+
+void loop() {
+  DateTime now = rtc.now();
+
+  Serial.print("Data e Ora da RTC: ");
+  Serial.print(now.year(), DEC);
+  Serial.print('/');
+  Serial.print(now.month(), DEC);
+  Serial.print('/');
+  Serial.print(now.day(), DEC);
+  Serial.print(" ");
+  Serial.print(now.hour(), DEC);
+  Serial.print(':');
+  Serial.print(now.minute(), DEC);
+  Serial.print(':');
+  Serial.print(now.second(), DEC);
+  Serial.println();
+
+  delay(2000);
+}
