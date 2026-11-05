@@ -1,4 +1,4 @@
 si immette il codice in arduino ide e si seleziona la board e la porta installando le giuste librerie.
 Dopo averlo lanciato, per vedere l'output dobbiamo impostare il numero di baud che si può vedere sulla destra.
 La temperatura cambierà a seconda delle varie rilevazioni del sensore ds18b20.
-Per poter selezionare la porta dedicata a questo sensore abbiamo usato lo scorso modello di esp
+Per poter selezionare la porta dedicata a questo sensore abbiamo usato lo scorso modello di esp, non avendo l'autorizzazione di installare driver.
